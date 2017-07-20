@@ -1,0 +1,14 @@
+Package: wafflemap
+Type: Package
+Title: Waffle Maps
+Version: 0.1.0
+Authors@R: c(
+      person("Timothée", "Giraud", 
+        email = "timothee.giraud@cnrs.fr", role = c("cre","aut")))
+Description: Create maps made of waffles.
+Depends: R (>= 2.10)
+Imports: graphics, sf, stats, cartography
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.0.1
