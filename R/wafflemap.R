@@ -1,68 +1,93 @@
-#' #' @title Waffle Map
-#' #' @name wafflemap
-#' #' @description Plot a waffle map.
-#' #' @param x a data.frame, two first column must be longitudes and latitudes of
-#' #' gridded data.
-#' #' @param var name of the variables to plot (at least 2).
-#' #' @export
-#'
-#'
-
-waf <- function(v, lab, nw, nh, xy, size){
-  coordX <- seq(from = xy[1], to = xy[1] + size * (nw - 1), by = size)
-  coordY <- seq(from = xy[2], to = xy[2] + size * (nh - 1), by = size)
-  spatGrid <- expand.grid(coordX, coordY)
-  spatGrid$id <- seq(1, nrow(spatGrid), 1)
-  coordinates(spatGrid) <- spatGrid[,1:2]
-  gridded(spatGrid) <- TRUE
-  g <-  methods::as(spatGrid, "SpatialPolygonsDataFrame")
-  type <- character(length(g))
-  x <- character(0)
-  for (i in 1:length(lab)){
-    x <- c(x,rep(lab[i],v[i]))
-  }
-  g@data <- data.frame(id = g@data$id, type, stringsAsFactors = FALSE)
-  g$type[1:length(x)] <- x
-  g <- g[g$type!="",]
-  row.names(g) <- as.character(g$id)
-  return(g)
-}
-
-library(cartography)
-library(mapinsetr)
-library(sf)
-library(sp)
-
-size = 200
-nw = 10
-mtq <- st_read(system.file("shape/martinique.shp", package="cartography"))
-mtq_extract <- mtq[mtq$INSEE_COM %in% c(97201,97225, 97219, 97211, 97215, 97203, 97214, 97218),]
-lab = c("C13_CS1", "C13_CS2", "C13_CS3", "C13_CS4", "C13_CS5", "C13_CS6")
-df <- cbind(st_coordinates(st_centroid(mtq_extract)), mtq_extract[,lab, drop=T])
-
-
-waf_l <- list()
-i = 1
-for (i in 1:nrow(df)){
-  v <- df[i,lab] / 10
-
+#' @title Waffle
+#' @name waffle
+#' @description Create a waffle.
+#' @param v a named vector of numeric values. It indicates the number of cells for each modalities.
+#' @param ncol number of columns.
+#' @param xy coordinates of the center of the waffle.
+#' @param size size of a cell side.
+#' @return An sf object of polygons is returned.
+#' @examples
+#' wafcells <- c(A = 2, B = 3, C = 7, D = 6, E = 4)
+#' mywaf <- waffle(v = wafcells, ncol = 5, xy = c(0,0), size = 2)
+#' plot(mywaf)
+#' @export
+waffle <- function(v, ncol, xy, size){
   nc <- sum(v)
-  mod <- nc%%nw
-  if(mod>0){nh <- ceiling(nc/nw)}else{nh <- floor(nc/nw)}
-  c1 <- c(df[i,"X"], df[i,"Y"])
-  x <- c1[1] - (nw * size / 2)
-  y <- c1[2] - (nh * size / 2)
-  xy <- c(x,y)
-  waf_l[[i]] <- waf(v = v, lab = lab, nw = nw, nh = nh, xy = xy, size = size)
+  if(nc==0){return()}
+  mod <- nc%%ncol
+  if(mod>0){
+    nrow <- ceiling(nc/ncol)
+  }else{
+    nrow <- floor(nc/ncol)
+  }
+  w = size * (ncol) / 2
+  h = size * (nrow) / 2
+  wcontainer <- sf::st_sfc(sf::st_polygon(list(cbind(
+    c(xy[1] - w, xy[1] + w, xy[1] + w, xy[1] - w, xy[1] - w),
+    c(xy[2] - h, xy[2] - h, xy[2] + h, xy[2] + h, xy[2] - h)))))
+  wp <- sf::st_make_grid(x = wcontainer, cellsize = size, what = "polygons")
+  type <- character(length(wp))
+  x <- character(0)
+  var <- names(v)
+  for (i in 1:length(var)){
+    x <- c(x,rep(var[i],floor(v[i])))
+  }
+  wp <- sf::st_sf(type = type, geometry = wp, stringsAsFactors = F)
+
+  if(length(x)>0){wp$type[1:length(x)] <- x}
+  wp <- wp[wp$type!="",]
+  return(wp)
 }
 
-xx <- inset_rbinder(waf_l)
-plot(mtq_extract$geometry,bg = "lightblue2")
-plot(mtq$geometry, add=T, lwd = 0.5, col = "lightblue3")
-plot(mtq_extract$geometry,add=T)
-typoLayer(spdf = xx, var = "type", colNA = "white", border = "white",
-          lwd = 0.5, add=T, legend.values.order = lab, legend.pos = "n",
-          col = carto.pal("multi.pal", 6), legend.nodata = F)
-lab2 <- rev(c("Agriculteurs", "Artisans", "Cadres","Prof. intermédiaires", "Employés", "Ouvriers"))
-legendTypo(col = rev(carto.pal("multi.pal", 6)), categ = lab2, nodata = F, title.txt = "Catégories\nsocio professionnelles", pos = "bottomleft")
-layoutLayer(title = "Les CSP en Martinique", sources = "",author = "", frame = T, theme = "blue.pal")
+
+#' @title Waffle Map
+#' @name wafflemap
+#' @description Plot a waffle map.
+#' @param x either an sf object or a data.frame with coordinates fields named "X" and "Y".
+#' @param var names of the field to use in x.
+#' @param ncol number of columns.
+#' @param size size of a cell side.
+#' @param ... other arguments from cartography::typoLayer.
+#' @return An sf object of polygons is returned.
+#' @examples
+#' wafcells <- c(A = 2, B = 3, C = 7, D = 6, E = 4)
+#' mywaf <- waffle(v = wafcells, ncol = 5, xy = c(0,0), size = 2)
+#' plot(mywaf)
+#' @export
+#'
+#
+# x = world
+# var = names(world)[4:9]
+# ncol = 5
+# size = 100000
+wafflemap <- function(x, var, ncol, size, ...){
+  if(methods::is(object = x, class2 = "sf")){
+    mycentro <- function(x){
+      truec <- function(x){
+        x1 <- st_cast(x = x, to = "POLYGON", warn = FALSE )
+        st_centroid(x1[which.max(st_area(x1)),])
+
+      }
+      wc <- do.call(rbind,truec(x))
+      x
+      world
+      class(wc)
+    }
+
+
+
+    x <- cbind(sf::st_coordinates(mycentro(x)), x[,var, drop=T])
+  }
+  waf_l <- list()
+  i = 1
+  for (i in 1:nrow(x)){
+    v <- as.vector(x[i,var])
+    xy <- c(x[i,"X"], x[i,"Y"])
+    waf_l[[i]] <- waffle(v = v, ncol = ncol, xy = xy, size = size)
+  }
+  waf <- do.call(rbind, waf_l)
+  cartography::typoLayer(x = waf[order(waf$type),], var = "type", ...)
+  return(invisible(waffle))
+}
+
+
