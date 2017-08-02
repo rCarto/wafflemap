@@ -5,3 +5,11 @@
 #' Create maps made of waffles.
 #' @docType package
 NULL
+
+
+#' @title bond
+#' @name bond
+#' @description bond
+#' @format sf
+#' @docType data
+NULL

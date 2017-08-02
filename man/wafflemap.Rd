@@ -24,7 +24,11 @@ An sf object of polygons is returned.
 Plot a waffle map.
 }
 \examples{
-wafcells <- c(A = 2, B = 3, C = 7, D = 6, E = 4)
-mywaf <- waffle(v = wafcells, ncol = 5, xy = c(0,0), size = 2)
-plot(mywaf)
+library(wafflemap)
+library(cartography)
+data(bond)
+plot(st_geometry(bond[bond$ISO2 \%in\% c("IS", "TR"), ]), bg = "ivory3", border = NA)
+plot(bond$geometry, border = "ivory2", bg = "ivory3", col = "ivory1", add=TRUE)
+wafflemap(x = bond, var = c("Sean.Connery", "Roger.Moore", "Pierce.Brosnan",  "Daniel.Craig"),
+          ncol = 3, size = 100000, add=TRUE, col = carto.pal(pal1 = "multi.pal", n1 = 4))
 }
